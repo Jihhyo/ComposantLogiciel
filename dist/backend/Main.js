@@ -1,102 +1,85 @@
 "use strict";
-/*
-
-import ("node-fetch");
-import unzip from "unzip-stream";
-import { Readable } from "stream";
-import Papa from "papaparse";
-
-// Fonction pour appliquer les règles directement
-function applyRules(row) {
-    // Règles définies
-    const urlCondition = "FranckBarbier.com/API/nudger.fr/opendata/gtin-open-data.zip";
-    const countryCodes = ["AT", "BE", "FR", "GB", "IT"];
-
-    // Vérification de l'URL
-    const isUrlValid = row.url && row.url.endsWith(urlCondition);
-
-    // Vérification du code-barres
-    const isBarcodeValid = row.code && /^\d{13}$/.test(row.code);
-
-    // Application des règles et association d'un pays
-    if (isUrlValid && isBarcodeValid) {
-        const country = countryCodes.find((code) => row.code.startsWith(code));
-        return country || "Unknown";
-    }
-
-    return "Invalid"; // Si les règles ne sont pas respectées
-}
-
-(async function Main() {
-    console.clear();
-    console.info("Starting file processing...");
-
-    const MAX_ROWS = Math.floor(Math.random() * 50) + 1; // Nombre aléatoire de données à traiter
-
-    try {
-        // Télécharger et extraire le fichier ZIP contenant le CSV
-        const response = await fetch("https://nudger.fr/opendata/gtin-open-data.zip");
-
-        if (!response.ok) {
-            throw new Error(`Failed to download ZIP file. Status: ${response.statusText}`);
-        }
-
-        const nodeStream = Readable.from(response.body as any);
-
-        nodeStream
-            .pipe(unzip.Parse()) // Décompresser le ZIP
-            .on("entry", (entry) => {
-                if (entry.path.endsWith(".csv")) {
-                    console.info(`Processing CSV file: ${entry.path}`);
-
-                    // Utiliser PapaParse pour lire le CSV ligne par ligne
-                    let rowCount = 0; // Compteur de lignes traitées
-
-                    Papa.parse(entry, {
-                        header: true, // Analyse le CSV en utilisant la première ligne comme en-têtes
-                        skipEmptyLines: true, // Ignore les lignes vides
-                        step: (results) => {
-                            if (rowCount >= MAX_ROWS) return; // Limiter le traitement à MAX_ROWS
-                            const row = results.data;
-
-                            // Appliquer les règles sur chaque ligne
-                            const country = applyRules(row);
-
-                            // Ajouter le pays au contexte ou afficher le résultat
-                            const filteredRow = { ...row, country };
-                            console.log("Filtered row:", filteredRow);
-
-                            rowCount++;
-                        },
-                        complete: () => {
-                            console.info(`Finished processing ${MAX_ROWS} rows from CSV file.`);
-                        },
-                        error: (error) => {
-                            console.error(`Error parsing CSV file ${entry.path}:`, error);
-                        },
-                    });
-                } else {
-                    console.info(`Skipping non-CSV file: ${entry.path}`);
-                    entry.autodrain(); // Ignorer les fichiers non pertinents
-                }
-            })
-            .on("error", (error) => {
-                console.error("Error during unzip:", error);
-            })
-            .on("close", () => {
-                console.info("Extraction completed successfully!");
-            });
-    } catch (error) {
-        console.error("Error occurred:", error);
-    }
-})();
-
-
-*/
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+import("node-fetch");
+const unzip_stream_1 = __importDefault(require("unzip-stream"));
+const stream_1 = require("stream");
+const papaparse_1 = __importDefault(require("papaparse"));
+function validateRow(row) {
+    // Vérification du code-barres (GTIN) - 13 chiffres
+    const isBarcodeValid = row.gtin && /^\d{13}$/.test(row.gtin);
+    // Vérification de l'URL - doit commencer par "https://"
+    const isUrlValid = row.url && row.url.startsWith("https://");
+    // Si les deux conditions sont remplies, retourner les données filtrées
+    if (isUrlValid && isBarcodeValid) {
+        return {
+            url: row.url,
+            name: row.name,
+            gtin: row.gtin,
+            gs1_country: row.gs1_country,
+        };
+    }
+    return null; // Retourne null si les conditions ne sont pas remplies
+}
+(async function Main() {
+    console.clear();
+    console.info("Starting file processing...");
+    const MAX_ROWS = Math.floor(Math.random() * 5000) + 1; // Nombre aléatoire de données à traiter
+    try {
+        // Télécharger et extraire le fichier ZIP contenant le CSV
+        const response = await fetch("https://nudger.fr/opendata/gtin-open-data.zip");
+        if (!response.ok) {
+            throw new Error(`Failed to download ZIP file. Status: ${response.statusText}`);
+        }
+        const nodeStream = stream_1.Readable.from(response.body);
+        nodeStream
+            .pipe(unzip_stream_1.default.Parse()) // Décompresser le ZIP
+            .on("entry", (entry) => {
+            if (entry.path.endsWith(".csv")) {
+                console.info(`Processing CSV file: ${entry.path}`);
+                // Utiliser PapaParse pour lire le CSV ligne par ligne
+                let rowCount = 0; // Compteur de lignes traitées
+                papaparse_1.default.parse(entry, {
+                    header: true, // Analyse le CSV en utilisant la première ligne comme en-têtes
+                    skipEmptyLines: true, // Ignore les lignes vides
+                    step: (results) => {
+                        if (rowCount >= MAX_ROWS)
+                            return; // Limiter le traitement à MAX_ROWS
+                        const row = results.data;
+                        // Valider et filtrer les lignes
+                        const filteredRow = validateRow(row);
+                        // Afficher les lignes valides
+                        if (filteredRow) {
+                            console.log("Filtered row:", filteredRow);
+                            rowCount++;
+                        }
+                    },
+                    complete: () => {
+                        console.info(`Finished processing ${rowCount} rows from CSV file.`);
+                    },
+                    error: (error) => {
+                        console.error(`Error parsing CSV file ${entry.path}:`, error);
+                    },
+                });
+            }
+            else {
+                console.info(`Skipping non-CSV file: ${entry.path}`);
+                entry.autodrain(); // Ignorer les fichiers non pertinents
+            }
+        })
+            .on("error", (error) => {
+            console.error("Error during unzip:", error);
+        })
+            .on("close", () => {
+            console.info("Extraction completed successfully!");
+        });
+    }
+    catch (error) {
+        console.error("Error occurred:", error);
+    }
+})();
 /* avant davoir mis le choix pour un certain nombre de données
 
 
@@ -287,38 +270,49 @@ import { DMiNer } from './DMiNer'; // Assurez-vous que ce chemin est correct sel
 
 
 */
-import("node-fetch");
-const unzip_stream_1 = __importDefault(require("unzip-stream"));
-const stream_1 = require("stream");
-const papaparse_1 = __importDefault(require("papaparse"));
+/*
+
+
+import ("node-fetch");
+import unzip from "unzip-stream";
+import { Readable } from "stream";
+import Papa from "papaparse";
+
 // Fonction pour appliquer les règles directement
 function applyRules(row) {
     // Règles définies
-    const urlCondition = "https://nudger.fr/opendata/gtin-open-data.zip";
+    
+    const urlCondition = "FranckBarbier.com/API/nudger.fr/opendata/gtin-open-data.zip";
     const countryCodes = ["AT", "BE", "FR", "GB", "IT"];
+
     // Vérification de l'URL
     const isUrlValid = row.url && row.url.endsWith(urlCondition);
+
     // Vérification du code-barres
     const isBarcodeValid = row.code && /^\d{13}$/.test(row.code);
+
     // Application des règles et association d'un pays
     if (isUrlValid && isBarcodeValid) {
         const country = countryCodes.find((code) => row.code.startsWith(code));
         return country || "Unknown";
     }
+
     return "Invalid"; // Si les règles ne sont pas respectées
 }
+
 // Fonction pour traiter les données CSV extraites
 async function processCSVStream(csvStream, maxRows) {
     return new Promise((resolve, reject) => {
         const processedData = [];
         let rowCount = 0;
-        papaparse_1.default.parse(csvStream, {
+
+        Papa.parse(csvStream, {
             header: true, // Utiliser la première ligne comme en-têtes
             skipEmptyLines: true, // Ignorer les lignes vides
             step: (results) => {
-                if (rowCount >= maxRows)
-                    return; // Limiter le traitement à maxRows
+                if (rowCount >= maxRows) return; // Limiter le traitement à maxRows
                 const row = results.data;
+
                 // Appliquer les règles et enregistrer les résultats
                 const country = applyRules(row);
                 processedData.push({ ...row, country });
@@ -335,45 +329,51 @@ async function processCSVStream(csvStream, maxRows) {
         });
     });
 }
+
 (async function Main() {
     console.clear();
     console.info("Starting file processing...");
+
     const MAX_ROWS = 10000; // Limite de lignes à traiter
+
     try {
         // Télécharger et extraire le fichier ZIP contenant le CSV
         const response = await fetch("https://nudger.fr/opendata/gtin-open-data.zip");
+
         if (!response.ok) {
             throw new Error(`Failed to download ZIP file. Status: ${response.statusText}`);
         }
-        const nodeStream = stream_1.Readable.from(response.body);
+
+        const nodeStream = Readable.from(response.body as any);
+
         nodeStream
-            .pipe(unzip_stream_1.default.Parse()) // Décompresser le ZIP
+            .pipe(unzip.Parse()) // Décompresser le ZIP
             .on("entry", async (entry) => {
-            if (entry.path.endsWith(".csv")) {
-                console.info(`Processing CSV file: ${entry.path}`);
-                // Traitement des données CSV via le stream
-                try {
-                    const processedData = await processCSVStream(entry, MAX_ROWS);
-                    console.log("Processed Data:", processedData);
+                if (entry.path.endsWith(".csv")) {
+                    console.info(`Processing CSV file: ${entry.path}`);
+
+                    // Traitement des données CSV via le stream
+                    try {
+                        const processedData = await processCSVStream(entry, MAX_ROWS);
+                        console.log("Processed Data:", processedData);
+                    } catch (error) {
+                        console.error(`Error processing CSV file ${entry.path}:`, error);
+                    }
+                } else {
+                    console.info(`Skipping non-CSV file: ${entry.path}`);
+                    entry.autodrain(); // Ignorer les fichiers non pertinents
                 }
-                catch (error) {
-                    console.error(`Error processing CSV file ${entry.path}:`, error);
-                }
-            }
-            else {
-                console.info(`Skipping non-CSV file: ${entry.path}`);
-                entry.autodrain(); // Ignorer les fichiers non pertinents
-            }
-        })
+            })
             .on("error", (error) => {
-            console.error("Error during unzip:", error);
-        })
+                console.error("Error during unzip:", error);
+            })
             .on("close", () => {
-            console.info("Extraction completed successfully!");
-        });
-    }
-    catch (error) {
+                console.info("Extraction completed successfully!");
+            });
+    } catch (error) {
         console.error("Error occurred:", error);
     }
 })();
+
+*/ 
 //# sourceMappingURL=Main.js.map

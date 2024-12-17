@@ -1,36 +1,35 @@
-/*
+
 
 import ("node-fetch");
 import unzip from "unzip-stream";
 import { Readable } from "stream";
 import Papa from "papaparse";
 
-// Fonction pour appliquer les règles directement
-function applyRules(row) {
-    // Règles définies
-    const urlCondition = "FranckBarbier.com/API/nudger.fr/opendata/gtin-open-data.zip";
-    const countryCodes = ["AT", "BE", "FR", "GB", "IT"];
+function validateRow(row) {
+    // Vérification du code-barres (GTIN) - 13 chiffres
+    const isBarcodeValid = row.gtin && /^\d{13}$/.test(row.gtin);
 
-    // Vérification de l'URL
-    const isUrlValid = row.url && row.url.endsWith(urlCondition);
+    // Vérification de l'URL - doit commencer par "https://"
+    const isUrlValid = row.url && row.url.startsWith("https://");
 
-    // Vérification du code-barres
-    const isBarcodeValid = row.code && /^\d{13}$/.test(row.code);
-
-    // Application des règles et association d'un pays
+    // Si les deux conditions sont remplies, retourner les données filtrées
     if (isUrlValid && isBarcodeValid) {
-        const country = countryCodes.find((code) => row.code.startsWith(code));
-        return country || "Unknown";
+        return {
+            url: row.url,
+            name: row.name,
+            gtin: row.gtin,
+            gs1_country: row.gs1_country,
+        };
     }
 
-    return "Invalid"; // Si les règles ne sont pas respectées
+    return null; // Retourne null si les conditions ne sont pas remplies
 }
 
 (async function Main() {
     console.clear();
     console.info("Starting file processing...");
 
-    const MAX_ROWS = Math.floor(Math.random() * 50) + 1; // Nombre aléatoire de données à traiter
+    const MAX_ROWS = Math.floor(Math.random() * 5000) + 1; // Nombre aléatoire de données à traiter
 
     try {
         // Télécharger et extraire le fichier ZIP contenant le CSV
@@ -58,17 +57,17 @@ function applyRules(row) {
                             if (rowCount >= MAX_ROWS) return; // Limiter le traitement à MAX_ROWS
                             const row = results.data;
 
-                            // Appliquer les règles sur chaque ligne
-                            const country = applyRules(row);
+                            // Valider et filtrer les lignes
+                            const filteredRow = validateRow(row);
 
-                            // Ajouter le pays au contexte ou afficher le résultat
-                            const filteredRow = { ...row, country };
-                            console.log("Filtered row:", filteredRow);
-
-                            rowCount++;
+                            // Afficher les lignes valides
+                            if (filteredRow) {
+                                console.log("Filtered row:", filteredRow);
+                                rowCount++;
+                            }
                         },
                         complete: () => {
-                            console.info(`Finished processing ${MAX_ROWS} rows from CSV file.`);
+                            console.info(`Finished processing ${rowCount} rows from CSV file.`);
                         },
                         error: (error) => {
                             console.error(`Error parsing CSV file ${entry.path}:`, error);
@@ -91,7 +90,7 @@ function applyRules(row) {
 })();
 
 
-*/
+
 
 /* avant davoir mis le choix pour un certain nombre de données 
 
@@ -287,6 +286,10 @@ import { DMiNer } from './DMiNer'; // Assurez-vous que ce chemin est correct sel
 */
 
 
+
+/*
+
+
 import ("node-fetch");
 import unzip from "unzip-stream";
 import { Readable } from "stream";
@@ -388,3 +391,5 @@ async function processCSVStream(csvStream, maxRows) {
         console.error("Error occurred:", error);
     }
 })();
+
+*/
