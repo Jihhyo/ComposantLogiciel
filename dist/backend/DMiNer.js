@@ -83,6 +83,23 @@ class Randomizer {
             ]
         };
     }
+    // Ajoutez la méthode apply ici
+    apply(context) {
+        // Exemple simple d'application : récupérer les valeurs du contexte et choisir une donnée de manière aléatoire
+        const selectedData = this._data.data[Math.floor(Math.random() * this._data.data.length)];
+        // Vous pouvez appliquer des règles basées sur les données et les fonctionnalités
+        const result = {};
+        this._features.forEach((feature) => {
+            if (context[feature]) {
+                result[feature] = context[feature]; // Copier les valeurs du contexte dans le résultat
+            }
+            else {
+                result[feature] = selectedData[feature] || "N/A"; // Sinon, utiliser les données aléatoires
+            }
+        });
+        // Retourner le résultat
+        return result;
+    }
     static _Chunks(stream_reader) {
         return {
             async *[Symbol.asyncIterator]() {
@@ -120,6 +137,12 @@ class Randomizer {
     }
 }
 class DMiNer {
+    static getRandomizer() {
+        if (!DMiNer._Randomizer) {
+            throw new Error("Randomizer is not initialized.");
+        }
+        return DMiNer._Randomizer;
+    }
     static async Get_DMN(test_case = DMiNer.DMN_example1) {
         // console.info("Where are we? " + __dirname + '\n');
         const where = path.join(path.resolve(__dirname, '../..'), DMiNer.DATA);
